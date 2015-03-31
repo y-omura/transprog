@@ -1,0 +1,55 @@
+
+## rule
+# a = b[hoge] : a[hoge] = b[hoge]
+search(x) :- tree(_, x, _, {=}, _), tree(x, y, 0, _, [_]), tree(x, z, 1, _, a), a != [_].
+replace(p, n, i, l, t, x) :- tree(x, n, 0, l, _), tree(x, _, 1, _, t), i = 0, p = x.
+
+## rule
+# dataflow_rule
+search(y) :- tree(_, y, _, l, a), a != [_], dataflow(y, 1, n, 1, l), tree(_, n, _, l, [_]).
+replace(p, n, i, l, t, x) :- dataflow(x, 1, n, 1, l), tree(_, x, _, l, t), tree(p, n, i, l, [_]).
+
+## rule
+# [税率(100分率)] / 100 : [税率] (隣接していない場合)
+search(x, y) :- is_div(x, y), tree(p_x, x, _, _, [tax_rate(%)]), tree(p_y, y, _, {100}, _), p_x != p_y, not_has_children(x), not_has_children(y).
+remove(n, x, y) :- n = y.
+remove(n, x, y) :- tree(n, y, _, _, _).
+remove(n, x, y) :- n = x.
+add(p, 0, i, l, t, is_root, x, y) :- tree(p, x, i, _, _), l={_}, t=[tax_rate].
+#replace(p, c, i, l, t, x, y) :- tree(p, c, i, _, _), l={_}, t=[tax_rate(%)], c = x.
+# yの親が15:*の場合
+replace(p, c, i, l, t, x, y) :- tree(opp, y, _, _, _), tree(p, opp, i, {*}, _), tree(opp, c, _, l, t), c != y.
+# yの親が16:/の場合で、indexが1の場合
+replace(p, c, i, l, t, x, y) :- tree(opp, y, _, _, _), tree(p, opp, i, {/}, _), tree(opp, c, 0, l, t), c != y.
+# yの親が16:/の場合で、indexが0の場合
+replace(p, c, i, l, t, x, y) :- tree(p, c, i, l, t), tree(c, y, _, _, _), l = {/}, tree(c, cc, 1, _, _), cc != y.
+replace(p, c, i, l, t, x, y) :- tree(p, c, i, _, _), c = y, l = {1}, t = [_], tree(_, p, _, {/}, _), i = 0.
+
+## rule
+# [税率(100分率)] / 100 : [税率] (隣接している場合)
+search(x, y) :- is_div(x, y), tree(p, x, _, _, [tax_rate(%)]), tree(p, y, _, {100}, _), not_has_children(x), not_has_children(y).
+remove(n, x, y) :- n = y.
+remove(n, x, y) :- tree(n, y, _, _, _).
+replace(p, c, i, l, t, x, y) :- tree(n, c, _, _, _), l={_}, t=[tax_rate], c = x, tree(p, n, i, _, _).
+
+## rule
+# [税率] * [原価] : [税込原価] (隣接していない場合)
+search(x, y) :- is_mul(x, y), tree(p_x, x, _, _, [tax_rate]), tree(p_y, y, _, _, [cost]), p_x != p_y, not_has_children(x), not_has_children(y).
+remove(n, x, y) :- n = y.
+remove(n, x, y) :- tree(n, y, _, _, _).
+replace(p, c, i, l, t, x, y) :- tree(p, c, i, _, _), l={_}, t=[cost_including_tax], c = x.
+# yの親が15:*の場合
+replace(p, c, i, l, t, x, y) :- tree(opp, y, _, _, _), tree(p, opp, i, {*}, _), tree(opp, c, _, l, t), c != y.
+# yの親が16:/の場合で、indexが1の場合
+replace(p, c, i, l, t, x, y) :- tree(opp, y, _, _, _), tree(p, opp, i, {/}, _), tree(opp, c, 0, l, t), c != y.
+# yの親が16:/の場合で、indexが0の場合
+replace(p, c, i, l, t, x, y) :- tree(p, c, i, l, t), tree(c, y, _, _, _), l = {/}, tree(c, cc, 1, _, _), cc != y.
+replace(p, c, i, l, t, x, y) :- tree(p, c, i, _, _), c = y, l = {1}, t = [_], tree(_, p, _, {/}, _), i = 0.
+
+## rule
+# [税率] * [原価] : [税込原価] (隣接している場合)
+search(x, y) :- is_mul(x, y), tree(p, x, _, _, [tax_rate]), tree(p, y, _, _, [cost]), not_has_children(x), not_has_children(y).
+remove(n, x, y) :- n = y.
+remove(n, x, y) :- tree(n, x, _, _, _).
+replace(p, c, i, l, t, x, y) :- tree(n, c, _, _, _), l={_}, t=[cost_including_tax], c = x, tree(p, n, i, _, _).
+

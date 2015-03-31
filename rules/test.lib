@@ -1,0 +1,117 @@
+lt_index(a: Index, b: Index)
+lt_index(a, b) :- a < b.
+has_smaller_lt_index(a: Index, b: Index)
+has_smaller_lt_index(a, b) :- lt_index(a, b), lt_index(a, c), c < b.
+next_index(a: Index, b: Index)
+next_index(a, b) :- lt_index(a, b), !has_smaller_lt_index(a, b).
+
+is_div(x: Node, y:Node)
+is_mul(x: Node, y: Node)
+
+is_div(x, y) :- tree(a, x, 0, _, _), tree(a, y, 1, _, _), tree(_, a, _, {/}, _).
+is_div(x, y) :- is_div(x, a), tree(a, y, _, _, _), tree(_, a, _, {*}, _).
+is_div(x, y) :- is_div(x, a), tree(a, y, 0, _, _), tree(_, a, _, {/}, _).
+is_div(x, y) :- is_mul(x, a), tree(a, y, 1, _, _), tree(_, a, _, {/}, _).
+is_div(x, y) :- is_div(a, y), tree(a, x, _, _, _), tree(_, a, _, {*}, _).
+is_div(x, y) :- is_div(a, y), tree(a, x, 0, _, _), tree(_, a, _, {/}, _).
+is_div(x, y) :- is_mul(a, y), tree(a, x, 1, _, _), tree(_, a, _, {/}, _).
+is_div(x, y) :- is_div(y, x).
+
+is_mul(x, y) :- tree(a, x, 0, _, _), tree(a, y, 1, _, _), tree(_, a, _, {*}, _).
+is_mul(x, y) :- is_mul(x, a), tree(a, y, _, _, _), tree(_, a, _, {*}, _).
+is_mul(x, y) :- is_mul(x, a), tree(a, y, 0, _, _), tree(_, a, _, {/}, _).
+is_mul(x, y) :- is_div(x, a), tree(a, y, 1, _, _), tree(_, a, _, {/}, _).
+is_mul(x, y) :- is_mul(a, y), tree(a, x, _, _, _), tree(_, a, _, {*}, _).
+is_mul(x, y) :- is_mul(a, y), tree(a, x, 0, _, _), tree(_, a, _, {/}, _).
+is_mul(x, y) :- is_div(a, y), tree(a, x, 1, _, _), tree(_, a, _, {/}, _).
+is_mul(x, y) :- is_mul(y, x).
+
+
+#子がある
+has_children(x: Node)
+has_children(x) :- tree(x, _, _, _, _).
+#子がない
+not_has_children(x: Node)
+not_has_children(x) :- !has_children(x), tree(_, x, _, _, _).
+
+#特定の子がある
+has_child(x: Node, i: Index)
+has_child(x, i) :- tree(x, _, i, _, _).
+
+#特定の子がない
+not_has_child(x: Node, i: Index)
+not_has_child(x, i) :- !has_child(x, i), tree(_, x, _, _, _).
+
+#先祖関係
+ancestor(a: Node, d: Node)
+ancestor(a, d) :- tree(a, d, _, _, _).
+ancestor(a, d) :- tree(a, x, _, _, _), ancestor(x, d).
+
+# 子の数関係
+has_larger_index_child(a: Node, i: Index)
+has_larger_index_child(a, i) :-  tree(a, _, i, _, _), tree(a, _, j, _, _), i < j.
+is_largest_index_child(a: Node, i: Index)
+is_largest_index_child(a, i) :- tree(a, _, i, _, _), !has_larger_index_child(a, i).
+
+# scope
+scope_block(n: Node)
+scope_block(n) :- tree(_, n, _, {block}, _).
+scope_block(n) :- tree(_, n, _, {for}, _).
+
+not_scope_block(n: Node)
+not_scope_block(n) :- !scope_block(n).
+
+def_in_block(n: Node, l: Label)
+def_in_block(n, l) :- tree(_, n, _, {def}, _), tree(n, equals, 1, _, _), tree(equals, label, 0, l, _).
+def_in_block(n, l) :- tree(n, c, _, _, _), def_in_block(c, l), not_scope_block(c).
+
+def_in_scope_block(n: Node, l: Label) outputtuples
+def_in_scope_block(n, l) :- def_in_block(n, l), scope_block(n).
+
+Io 2
+# dataflow
+# dataflow_special_operator 3:if 7:throw 13:= 18:switch 27:return
+dataflow_special_operator(l: Label)
+dataflow_special_operator({def}).
+dataflow_special_operator({if}).
+dataflow_special_operator({throw}).
+dataflow_special_operator({=}).
+dataflow_special_operator({switch}).
+dataflow_special_operator({return}).
+dataflow_normal_operator(l: Label)
+dataflow_normal_operator(l) :- !dataflow_special_operator(l).
+dataflow(a: Node, a_io: Io, b: Node, b_io: Io, l: Label) outputtuples
+dataflow(a, aio, b, bio, l) :- a = b, aio = 0, bio = 1, not_has_children(a).
+# normal_operator (nth-child:n+1th-child), (parent:first-child), (last-child:parent) if not def_in_scope_block
+dataflow(a, aio, b, bio, l) :- tree(p, a, i, _, _), tree(p, b, j, _, _), tree(_, p, _, ope, _), aio = 1, bio = 0, next_index(i, j), dataflow_normal_operator(ope).
+dataflow(a, aio, b, bio, l) :- tree(a, b, 0, _, _), tree(_, a, _, ope, _), aio = 0, bio = 0, dataflow_normal_operator(ope).
+dataflow(a, aio, b, bio, l) :- tree(b, a, i, _, _), is_largest_index_child(b, i), tree(_, b, _, ope, _), aio = 1, bio = 1, !def_in_scope_block(a, l), dataflow_normal_operator(ope).
+# spcial_operator
+#-- def (nth-child:n+1th-child), (parent:first-child) if not def_in_this, (last-child:parent)
+dataflow(a, aio, b, bio, l) :- tree(p, a, i, _, _), tree(p, b, j, _, _), tree(_, p, _, {def}, _), aio = 1, bio = 0, next_index(i, j).
+dataflow(a, aio, b, bio, l) :- tree(a, b, 0, _, _), tree(_, a, _, {def}, _), aio = 0, bio = 0, l != label, tree(a, equals, 1, _, _), tree(equals, _, 0, label, _).
+dataflow(a, aio, b, bio, l) :- tree(b, a, i, _, _), is_largest_index_child(b, i), tree(_, b, _, {def}, _), aio = 1, bio = 1.
+#-- 3:if (1st-child:2nd-child), (1st-child:3rd-child), (parent:1st-child), (2nd-child:parent), (3rd-child:parent), elseがない場合>(1st-child:parent)
+dataflow(a, aio, b, bio, l) :- tree(p, a, 0, _, _), tree(p, b, 1, _, _), tree(_, p, _, {if}, _), aio = 1, bio = 0.
+dataflow(a, aio, b, bio, l) :- tree(p, a, 0, _, _), tree(p, b, 2, _, _), tree(_, p, _, {if}, _), aio = 1, bio = 0.
+dataflow(a, aio, b, bio, l) :- tree(a, b, 0, _, _), tree(_, a, _, {if}, _), aio = 0, bio = 0.
+dataflow(a, aio, b, bio, l) :- tree(b, a, 1, _, _), tree(_, b, _, {if}, _), aio = 1, bio = 1.
+dataflow(a, aio, b, bio, l) :- tree(b, a, 2, _, _), tree(_, b, _, {if}, _), aio = 1, bio = 1.
+dataflow(a, aio, b, bio, l) :- tree(b, a, 0, _, _), tree(_, b, _, {if}, _), aio = 1, bio = 1, not_has_child(b, 2).
+#-- 7:throw (parent:first-child)
+dataflow(a, aio, b, bio, l) :- tree(a, b, 0, _, _), tree(_, a, _, 7, _), aio = 0, bio = 0.
+#-- 13:= (2nd-child:first-child)if first-child.label != l, (parent:2nd-child), (first-child:parent)
+dataflow(a, aio, b, bio, l) :- tree(p, a, 1, _, _), tree(p, b, 0, sbst_var, _), tree(_, p, _, {=}, _), aio = 1, bio = 0, sbst_var != l.
+dataflow(a, aio, b, bio, l) :- tree(a, b, 1, _, _), tree(_, a, _, {=}, _), aio = 0, bio = 0.
+dataflow(a, aio, b, bio, l) :- tree(b, a, 0, _, _), tree(_, b, _, {=}, _), aio = 1, bio = 1.
+#-- 18:switch (first-child:nth-child(n!=1)), (parent:first-child), (last-child:parent)
+dataflow(a, aio, b, bio, l) :- tree(p, a, 0, _, _), tree(p, b, nth_child, _, _), nth_child != 0, tree(_, p, _, {switch}, _), aio = 1, bio = 0.
+dataflow(a, aio, b, bio, l) :- tree(a, b, 0, _, _), tree(_, a, _, {switch}, _), aio = 0, bio = 0.
+dataflow(a, aio, b, bio, l) :- tree(b, a, i, _, _), is_largest_index_child(b, i), tree(_, b, _, {switch}, _), aio = 1, bio = 1.
+#-- 27:return (parent:first-child)
+dataflow(a, aio, b, bio, l) :- tree(a, b, 0, _, _), tree(_, a, _, {return}, _), aio = 0, bio = 0.
+# 推移
+dataflow(a, aio, b, bio, l) :- dataflow(a, aio, c, cio, l), dataflow(c, cio, b, bio, l).
+dataflow(a, aio, b, bio, l) :- dataflow(b, bio, a, aio, l).
+# breakのことを考えていないのであとで追加 TODO
+# スコープのことを考えていないので追加 TODO

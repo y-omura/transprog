@@ -1,0 +1,10 @@
+number
+	int
+		cost
+		cost_including_tax
+	float
+		tax_rate(%)
+		tax_rate
+enum
+	category
+	subcategory
