@@ -1,0 +1,2 @@
+type_tree(parent: Type, child: Type)
+type_tree(0, 1).

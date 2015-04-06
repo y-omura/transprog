@@ -1,0 +1,12 @@
+06 cost_including_tax
+11 category
+12 subcategory
+04 int
+08 tax_rate(%)
+10 enum
+03 number
+01 _
+02 object
+07 float
+05 cost
+09 tax_rate
